@@ -25,7 +25,7 @@ public class ObstacleAvoidance : MonoBehaviour
 
 
 
-        return (transform.position - hit.collider.transform.position).NoY();
+        return (transform.position - hit.collider.transform.position);
     }
 
     private void OnDrawGizmos()
