@@ -26,3 +26,4 @@ public class GameManager : MonoBehaviour
 
     // Podés agregar Restart() que recarge la escena, etc.
 }
+
