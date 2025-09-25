@@ -53,11 +53,13 @@ public class GameManager : MonoBehaviour
 
     public void Restart()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene("Level"); // asegúrate que "Level" exista en Build Settings
     }
 
     public void Exit()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene("MainMenu");
     }
 
@@ -65,7 +67,7 @@ public class GameManager : MonoBehaviour
     {
         losePanel.SetActive(false);
         victoryPanel.SetActive(false);
-
+        Time.timeScale = 0f;
         panel.SetActive(true);
     }
 }
