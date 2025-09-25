@@ -2,8 +2,13 @@ using System;
 using UnityEngine;
 
 [RequireComponent(typeof(ObstacleAvoidance))]
+[RequireComponent(typeof(Rigidbody))]
 public class NPCTree : MonoBehaviour
 {
+    [SerializeField] float fleeDuration = 5f; // tiempo que huye al detectar al player
+    private float fleeTimer;
+    private bool isFleeing;
+
     public enum EnemyType { Aggressive, Coward }
 
     [Header("Stats")]
@@ -40,8 +45,17 @@ public class NPCTree : MonoBehaviour
     private Evade evade;
     private Arrive arrive;
 
+    // Rigidbody
+    private Rigidbody rb;
+    private float startY;
+
     void Start()
     {
+        rb = GetComponent<Rigidbody>();
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ; // que no se caiga de costado
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        startY = transform.position.y;
+
         if (obstacleAvoidance == null)
             obstacleAvoidance = GetComponent<ObstacleAvoidance>();
 
@@ -50,12 +64,14 @@ public class NPCTree : MonoBehaviour
 
         if (waypoints != null && waypoints.Length > 0)
             seek = new Seek(waypoints[currentWP].transform, transform, maxSpeed);
+
         if (target != null)
         {
             flee = new Flee(target.transform, transform, maxSpeed);
             persuit = new Persuit(target.transform, transform, maxSpeed);
             evade = new Evade(target.transform, transform, maxSpeed);
         }
+
         if (waypoints != null && waypoints.Length > 0)
             arrive = new Arrive(waypoints[currentWP].transform, transform, maxSpeed, arriveRange);
 
@@ -88,7 +104,12 @@ public class NPCTree : MonoBehaviour
         }
         else // Coward
         {
-            QuestionNode isPInSightCoward = new(fieldOfView != null ? new Func<bool>(fieldOfView.CheckDetection) : (() => false), fleeAction, arrivedAtPoint);
+            // Si ya está huyendo, sigue en Flee aunque no te vea
+            QuestionNode isStillFleeing = new(() => isFleeing, fleeAction, arrivedAtPoint);
+
+            // Si te ve y no está huyendo, activa el Flee
+            QuestionNode isPInSightCoward = new(fieldOfView != null ? new Func<bool>(fieldOfView.CheckDetection) : (() => false), fleeAction, isStillFleeing);
+
             QuestionNode isAlive = new(() => health <= 0, die, isPInSightCoward);
             _rootNode = isAlive;
         }
@@ -111,11 +132,27 @@ public class NPCTree : MonoBehaviour
 
     private void Flee()
     {
-        Debug.Log($"{name}: Flee");
+        if (!isFleeing)
+        {
+            isFleeing = true;
+            fleeTimer = fleeDuration;
+            Debug.Log($"{name}: Inicia huida");
+        }
+
+        Debug.Log($"{name}: Fleeing...");
         if (evade != null)
         {
             var steer = evade.GetSteerDir(velocity);
             ApplySteering(steer);
+        }
+
+        // contar tiempo
+        fleeTimer -= Time.deltaTime;
+        if (fleeTimer <= 0f)
+        {
+            isFleeing = false;
+            Debug.Log($"{name}: Terminó huida, retomando patrulla...");
+            ResumePatrol(); // ?? Reengancha la patrulla
         }
     }
 
@@ -179,6 +216,30 @@ public class NPCTree : MonoBehaviour
     }
     #endregion
 
+    #region Helpers
+    private void ResumePatrol()
+    {
+        if (waypoints == null || waypoints.Length == 0) return;
+
+        // Buscar waypoint más cercano
+        float minDist = float.MaxValue;
+        int nearest = 0;
+        for (int i = 0; i < waypoints.Length; i++)
+        {
+            if (waypoints[i] == null) continue;
+            float dist = Vector3.Distance(transform.position, waypoints[i].position);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                nearest = i;
+            }
+        }
+
+        currentWP = nearest;
+        arrive.SetTarget = waypoints[currentWP];
+        Debug.Log($"{name}: Retomando patrulla desde WP {currentWP}");
+    }
+
     private void ApplySteering(Vector3 steering)
     {
         Vector3 avoid = Vector3.zero;
@@ -186,12 +247,19 @@ public class NPCTree : MonoBehaviour
             avoid = obstacleAvoidance.Avoid(steering);
 
         Vector3 final = steering + avoid;
+        final.y = 0f; // nunca moverse en Y
+
         velocity = final;
-        transform.position += velocity * Time.deltaTime;
+
+        // movimiento con Rigidbody (respeta colisiones)
+        Vector3 newPos = rb.position + velocity * Time.deltaTime;
+        newPos.y = startY; // mantener altura fija del suelo
+        rb.MovePosition(newPos);
 
         if (final.sqrMagnitude > 0.001f)
             transform.forward = Vector3.Slerp(transform.forward, final.normalized, 10f * Time.deltaTime);
     }
+    #endregion
 
     private void OnDrawGizmos()
     {
@@ -207,3 +275,4 @@ public class NPCTree : MonoBehaviour
         }
     }
 }
+
