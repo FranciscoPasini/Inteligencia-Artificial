@@ -1,28 +1,71 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance;
+    [SerializeField] private GameObject losePanel;
+    [SerializeField] private GameObject victoryPanel;
 
-    public TMP_Text messageText; // asignar en inspector
-    bool gameOver = false;
+    [SerializeField] private GameObject winningBox;
 
-    void Awake()
+    private bool panelOpened = false;
+
+    void Start()
     {
-        if (Instance != null && Instance != this) Destroy(this.gameObject);
-        else Instance = this;
+        // Aseguramos que el trigger de victoria tenga isTrigger = true
+        if (winningBox != null)
+        {
+            Collider col = winningBox.GetComponent<Collider>();
+            if (col != null) col.isTrigger = true;
+        }
     }
 
-    public void PlayerKilled()
+    void Update()
     {
-        if (gameOver) return;
-        gameOver = true;
-        if (messageText != null)
-            messageText.text = "GAME OVER\nHas sido eliminado por un enemigo.";
-        Time.timeScale = 0f; // pausar la simulación para demo
-        Debug.Log("Player killed - Game Over");
+        if (panelOpened) return;
+
+        // Busca si todavía existe el Player
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+
+        if (player == null)
+        {
+            OpenPanel(losePanel);
+            panelOpened = true;
+        }
     }
 
-    // Podés agregar Restart() que recarge la escena, etc.
+    // Dentro de GameManager (si está en el GameObject con collider trigger)
+    private void OnTriggerEnter(Collider other)
+    {
+        if (panelOpened) return;
+        if (other.CompareTag("Player"))
+        {
+            Win();
+        }
+    }
+
+
+    public void Win()
+    {
+        OpenPanel(victoryPanel);
+        panelOpened = true;
+    }
+
+    public void Restart()
+    {
+        SceneManager.LoadScene("Level"); // asegúrate que "Level" exista en Build Settings
+    }
+
+    public void Exit()
+    {
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    public void OpenPanel(GameObject panel)
+    {
+        losePanel.SetActive(false);
+        victoryPanel.SetActive(false);
+
+        panel.SetActive(true);
+    }
 }
