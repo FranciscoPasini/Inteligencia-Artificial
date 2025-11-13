@@ -1,74 +1,85 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[RequireComponent(typeof(ObstacleAvoidance))]
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(ObstacleAvoidance))]
 public class NPCTree : MonoBehaviour
 {
-    [SerializeField] float fleeDuration = 5f; // tiempo que huye al detectar al player
-    private float fleeTimer;
-    private bool isFleeing;
-    // PATHFINDING -----------------------
-    private List<PFNode> currentPath = new List<PFNode>();
-    private int pathIndex = 0;
-    [SerializeField] private float repathTime = 1.0f;   // cada cuanto recalcula
-    private float repathTimer = 0f;
-
     public enum EnemyType { Aggressive, Coward }
 
     [Header("Stats")]
-    [SerializeField] int health = 100;
-    [SerializeField] int maxHealth = 100;
-    [SerializeField, Range(0, 100)] int lowHealthThreshold = 30;
+    public int health = 100;
+    public int maxHealth = 100;
+    [Range(0, 100)] public int lowHealthThreshold = 30;
 
     [Header("References")]
-    [SerializeField] FOV fieldOfView;
-    [SerializeField] GameObject target;
-    [SerializeField] Transform[] waypoints;
-    [SerializeField] ObstacleAvoidance obstacleAvoidance;
+    public FOV fieldOfView;
+    public GameObject target;
+    public Transform[] waypoints;
 
     [Header("Movement")]
-    [SerializeField] int currentWP = 0;
-    [SerializeField] float attackRange = 2f;
-    [SerializeField] float maxSpeed = 5f;
-    [SerializeField] Vector3 velocity;
-    [SerializeField] float arriveRange = 2f;
+    public float attackRange = 2f;
+    public float maxSpeed = 5f;
+    public float arriveRange = 2f;
 
     [Header("Behaviour")]
-    [SerializeField] EnemyType enemyType = EnemyType.Aggressive;
-    [SerializeField] float idleDuration = 2f;
+    public EnemyType enemyType = EnemyType.Aggressive;
+    public float idleDuration = 2f;
+    public float fleeDuration = 5f;
 
-    private ITreeNode _rootNode;
+    [Header("Pathfinding (search)")]
+    [SerializeField] private float repathTime = 1.0f;   // cada cuanto recalcula ruta
+    [SerializeField] public float searchDuration = 10f; // tiempo que busca al perder vision
 
-    private float idleTimer = 0f;
-    private bool patrolForward = true;
+    // steering / movement state
+    [HideInInspector] public int currentWP = 0;
+    [HideInInspector] public Vector3 velocity;
+    private Rigidbody rb;
+    private float startY;
 
     // steering helpers
     private Seek seek;
     private Flee flee;
     private Persuit persuit;
     private Evade evade;
-    private Arrive arrive;
+    public Arrive arrive;
 
-    // Rigidbody
-    private Rigidbody rb;
-    private float startY;
+    // obstacle avoidance (de tu amigo)
+    private ObstacleAvoidance obstacleAvoidance;
+
+    // FSM y estados
+    private FSM fsm;
+    public NPCIdleState IdleState { get; private set; }
+    public NPCPatrolState PatrolState { get; private set; }
+    public NPCAttackState AttackState { get; private set; }
+
+    // Pathfinding internals (del código de tu amigo)
+    private List<PFNode> currentPath = new List<PFNode>();
+    private int pathIndex = 0;
+    private float repathTimer = 0f;
+
+    // Search internals
+    public bool isSearching = false;
+    private float searchTimer = 0f;
+    public Vector3 lastSeenPosition;
+
+    // utilities
+    private float idleTimer = 0f;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ; // que no se caiga de costado
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         startY = transform.position.y;
 
-        if (obstacleAvoidance == null)
-            obstacleAvoidance = GetComponent<ObstacleAvoidance>();
+        obstacleAvoidance = GetComponent<ObstacleAvoidance>();
 
         if (waypoints != null && waypoints.Length > 0)
             currentWP = Mathf.Clamp(currentWP, 0, waypoints.Length - 1);
 
         if (waypoints != null && waypoints.Length > 0)
-            seek = new Seek(waypoints[currentWP].transform, transform, maxSpeed);
+            arrive = new Arrive(waypoints[currentWP], transform, maxSpeed, arriveRange);
 
         if (target != null)
         {
@@ -77,250 +88,217 @@ public class NPCTree : MonoBehaviour
             evade = new Evade(target.transform, transform, maxSpeed);
         }
 
-        if (waypoints != null && waypoints.Length > 0)
-            arrive = new Arrive(waypoints[currentWP].transform, transform, maxSpeed, arriveRange);
+        // FSM setup
+        fsm = new FSM();
+        IdleState = new NPCIdleState(this);
+        PatrolState = new NPCPatrolState(this);
+        AttackState = new NPCAttackState(this);
 
-        CreateTree();
-    }
-
-    private void CreateTree()
-    {
-        // Actions
-        ActionNode die = new(Die);
-        ActionNode patrol = new(Patrol);
-        ActionNode idle = new(Idle);
-        ActionNode fleeAction = new(Flee);
-        ActionNode persuitAction = new(Persuit);
-        ActionNode attack = new(Attack);
-
-        // Conditions
-        QuestionNode inAttackRange = new(() =>
-            target != null && Vector3.Distance(transform.position, target.transform.position) < attackRange, attack, persuitAction);
-
-        QuestionNode arrivedAtPoint = new(() =>
-            waypoints != null && waypoints.Length > 0 && Vector3.Distance(transform.position, waypoints[currentWP].position) < 0.3f, idle, patrol);
-
-        if (enemyType == EnemyType.Aggressive)
-        {
-            QuestionNode lowHealth = new(() => health < maxHealth * lowHealthThreshold / 100, fleeAction, inAttackRange);
-            QuestionNode isPInSight = new(fieldOfView != null ? new Func<bool>(fieldOfView.CheckDetection) : (() => false), lowHealth, arrivedAtPoint);
-            QuestionNode isAlive = new(() => health <= 0, die, isPInSight);
-            _rootNode = isAlive;
-        }
-        else // Coward
-        {
-            // Si ya está huyendo, sigue en Flee aunque no te vea
-            QuestionNode isStillFleeing = new(() => isFleeing, fleeAction, arrivedAtPoint);
-
-            // Si te ve y no está huyendo, activa el Flee
-            QuestionNode isPInSightCoward = new(fieldOfView != null ? new Func<bool>(fieldOfView.CheckDetection) : (() => false), fleeAction, isStillFleeing);
-
-            QuestionNode isAlive = new(() => health <= 0, die, isPInSightCoward);
-            _rootNode = isAlive;
-        }
+        fsm.SetState(IdleState);
     }
 
     void Update()
     {
-        if (_rootNode == null)
-            CreateTree();
+        // actualizar repathTimer siempre
+        if (repathTimer > 0f) repathTimer -= Time.deltaTime;
 
-        _rootNode.Execute();
+        fsm.OnUpdate();
     }
 
-    #region Actions
-    private void Die()
+    // ----------------------- FSM helpers -----------------------
+    public void ChangeState(IState newState) => fsm.SetState(newState);
+
+    // ----------------------- ACTIONS (usadas por estados / tree) -----------------------
+    public void Patrol()
+    {
+        if (waypoints == null || waypoints.Length == 0 || arrive == null) return;
+
+        arrive.SetTarget = waypoints[currentWP];
+        var steer = arrive.GetSteerDir(velocity);
+        ApplySteering(steer);
+
+        // si llegó al waypoint, lo maneja el PatrolState (ruleta)
+        if (Vector3.Distance(transform.position, waypoints[currentWP].position) < 0.5f)
+        {
+            // avanzar indice para próximo objetivo (si PatrolState decide seguir)
+            // El PatrolState actualizará currentWP cuando corresponda.
+        }
+    }
+
+    public bool IsAtWaypoint()
+    {
+        if (waypoints == null || waypoints.Length == 0) return false;
+        return Vector3.Distance(transform.position, waypoints[currentWP].position) < 0.5f;
+    }
+
+    public void Persuit()
+    {
+        // Versión simple (steering directo, usado cuando ve al jugador)
+        if (persuit == null || target == null) return;
+        velocity = persuit.GetSteerDir(velocity);
+        ApplySteering(velocity);
+    }
+
+    public void PersuitWithPathfinding()
+    {
+        // llamado cuando queremos usar pathfinding para buscar/perseguir
+        if (target == null) return;
+
+        // si todavía ve al jugador: sigue con persuit normal (más reactivo)
+        if (IsPlayerInSight())
+        {
+            Persuit();
+            // actualizar última posición vista
+            lastSeenPosition = target.transform.position;
+            return;
+        }
+
+        // si perdió la visión: iniciar o continuar búsqueda
+        if (!isSearching)
+            StartSearch(lastSeenPosition, searchDuration);
+
+        // mientras busca, sigue el path
+        UpdateSearch();
+    }
+
+    public void Flee()
+    {
+        if (evade == null) return;
+        velocity = evade.GetSteerDir(velocity);
+        ApplySteering(velocity);
+    }
+
+    public void Attack()
+    {
+        Debug.Log($"{name}: Attack!");
+        if (target != null)
+        {
+            Destroy(target);
+        }
+    }
+
+    public void Die()
     {
         Debug.Log($"{name}: Die");
         Destroy(gameObject);
     }
 
-    private void Flee()
-    {
-        if (!isFleeing)
-        {
-            isFleeing = true;
-            fleeTimer = fleeDuration;
-            Debug.Log($"{name}: Inicia huida");
-        }
-
-        Debug.Log($"{name}: Fleeing...");
-        if (evade != null)
-        {
-            var steer = evade.GetSteerDir(velocity);
-            ApplySteering(steer);
-        }
-
-        // contar tiempo
-        fleeTimer -= Time.deltaTime;
-        if (fleeTimer <= 0f)
-        {
-            isFleeing = false;
-            Debug.Log($"{name}: Terminó huida, retomando patrulla...");
-            ResumePatrol(); // ?? Reengancha la patrulla
-        }
-    }
-
-    private void Attack()
-    {
-        Debug.Log($"{name}: Attack (game over!)");
-        if (target != null)
-        {
-            Destroy(target); // simplificado: elimina al player
-        }
-    }
-
-    private void Patrol()
-    {
-        if (waypoints == null || waypoints.Length == 0 || arrive == null)
-            return;
-
-        Debug.Log($"{name}: Patrol (wp {currentWP})");
-        arrive.SetTarget = waypoints[currentWP].transform;
-        var steer = arrive.GetSteerDir(velocity);
-        ApplySteering(steer);
-    }
-
-    private void Idle()
-    {
-        Debug.Log($"{name}: Idle");
-        idleTimer += Time.deltaTime;
-        if (idleTimer >= idleDuration)
-        {
-            idleTimer = 0f;
-
-            if (patrolForward) currentWP++;
-            else currentWP--;
-
-            if (waypoints != null && waypoints.Length > 0)
-            {
-                if (currentWP >= waypoints.Length)
-                {
-                    currentWP = waypoints.Length - 2;
-                    patrolForward = false;
-                }
-                else if (currentWP < 0)
-                {
-                    currentWP = 1;
-                    patrolForward = true;
-                }
-
-                arrive.SetTarget = waypoints[currentWP].transform;
-            }
-        }
-    }
-
-    private void Persuit()
-    {
-        if (target == null) return;
-
-        // Recalcular camino cada cierto tiempo
-        repathTimer -= Time.deltaTime;
-        if (repathTimer <= 0)
-        {
-            RequestPath();
-            repathTimer = repathTime;
-        }
-
-        // Seguir el camino
-        FollowPath();
-
-        // Si está en rango de ataque, atacamos
-        if (Vector3.Distance(transform.position, target.transform.position) < attackRange)
-        {
-            Attack();
-        }
-    }
-
-    #endregion
-
-    #region Helpers
-    private void ResumePatrol()
-    {
-        if (waypoints == null || waypoints.Length == 0) return;
-
-        // Buscar waypoint más cercano
-        float minDist = float.MaxValue;
-        int nearest = 0;
-        for (int i = 0; i < waypoints.Length; i++)
-        {
-            if (waypoints[i] == null) continue;
-            float dist = Vector3.Distance(transform.position, waypoints[i].position);
-            if (dist < minDist)
-            {
-                minDist = dist;
-                nearest = i;
-            }
-        }
-
-        currentWP = nearest;
-        arrive.SetTarget = waypoints[currentWP];
-        Debug.Log($"{name}: Retomando patrulla desde WP {currentWP}");
-    }
-
-    private void ApplySteering(Vector3 steering)
+    // ----------------------- Movement / Steering with avoidance -----------------------
+    public void ApplySteering(Vector3 steering)
     {
         Vector3 avoid = Vector3.zero;
         if (obstacleAvoidance != null)
             avoid = obstacleAvoidance.Avoid(steering);
 
         Vector3 final = steering + avoid;
-        final.y = 0f; // nunca moverse en Y
+        final.y = 0f;
+
+        if (final.magnitude > maxSpeed)
+            final = final.normalized * maxSpeed;
 
         velocity = final;
 
-        // movimiento con Rigidbody (respeta colisiones)
         Vector3 newPos = rb.position + velocity * Time.deltaTime;
-        newPos.y = startY; // mantener altura fija del suelo
+        newPos.y = startY;
+
         rb.MovePosition(newPos);
 
         if (final.sqrMagnitude > 0.001f)
             transform.forward = Vector3.Slerp(transform.forward, final.normalized, 10f * Time.deltaTime);
     }
-    #endregion
 
-    private void OnDrawGizmos()
+    // ----------------------- PATHFINDING (de tu amigo) -----------------------
+    public void RequestPath(Vector3 goalPosition)
     {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, attackRange);
+        if (PathfindingManager.Instance == null) return;
 
-        if (waypoints != null)
-        {
-            Gizmos.color = Color.cyan;
-            for (int i = 0; i < waypoints.Length; i++)
-                if (waypoints[i] != null)
-                    Gizmos.DrawSphere(waypoints[i].position, 0.08f);
-        }
-    }
-    private void RequestPath()
-    {
-        if (target == null) return;
-
-        currentPath = PathfindingManager.Instance.GetPath(
-            transform.position,
-            target.transform.position
-        );
-
+        currentPath = PathfindingManager.Instance.GetPath(transform.position, goalPosition);
         pathIndex = 0;
+        repathTimer = repathTime;
     }
+
     private void FollowPath()
     {
         if (currentPath == null || currentPath.Count == 0) return;
         if (pathIndex >= currentPath.Count) return;
 
         PFNode node = currentPath[pathIndex];
+        if (node == null)
+        {
+            pathIndex++;
+            return;
+        }
+
         Vector3 nodePos = node.transform.position;
 
-        // Usamos tu steering Arrive o Seek
-        arrive.SetTarget = node.transform;
-        var steer = arrive.GetSteerDir(velocity);
+        // usar Arrive hacia el nodo
+        if (arrive != null)
+            arrive.SetTarget = node.transform;
+
+        var steer = arrive != null ? arrive.GetSteerDir(velocity) : (nodePos - transform.position).normalized * maxSpeed;
         ApplySteering(steer);
 
         // Si estamos cerca, pasamos al siguiente nodo
         if (Vector3.Distance(transform.position, nodePos) < 0.5f)
-        {
             pathIndex++;
+    }
+
+    // ----------------------- SEARCH (last seen) logic -----------------------
+    public void StartSearch(Vector3 lastPos, float duration)
+    {
+        isSearching = true;
+        searchTimer = duration;
+        lastSeenPosition = lastPos;
+        RequestPath(lastSeenPosition);
+    }
+
+    /// <summary>
+    /// Llamar cada frame mientras isSearching == true.
+    /// Retorna:
+    /// -1 = aún buscando (no encontró, no expiró)
+    ///  0 = expiró (falló)
+    ///  1 = encontró (volvió a ver al player)
+    /// </summary>
+    public int UpdateSearch()
+    {
+        if (!isSearching) return -1;
+
+        // si volvió a ver al jugador
+        if (IsPlayerInSight())
+        {
+            isSearching = false;
+            return 1;
         }
+
+        // recalcular ruta si corresponde
+        if (repathTimer <= 0f)
+        {
+            RequestPath(lastSeenPosition);
+            repathTimer = repathTime;
+        }
+
+        // seguir path
+        FollowPath();
+
+        // decrementar timer
+        searchTimer -= Time.deltaTime;
+        if (searchTimer <= 0f)
+        {
+            isSearching = false;
+            return 0; // expiró
+        }
+
+        return -1; // sigue buscando
+    }
+
+    // ----------------------- UTILITIES -----------------------
+    public bool IsPlayerInSight()
+    {
+        return fieldOfView != null && fieldOfView.CheckDetection();
+    }
+
+    public bool IsLowHealth()
+    {
+        return health < maxHealth * lowHealthThreshold / 100f;
     }
 }
-
