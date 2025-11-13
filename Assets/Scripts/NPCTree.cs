@@ -1,6 +1,6 @@
 using System;
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 [RequireComponent(typeof(ObstacleAvoidance))]
 [RequireComponent(typeof(Rigidbody))]
@@ -9,9 +9,11 @@ public class NPCTree : MonoBehaviour
     [SerializeField] float fleeDuration = 5f; // tiempo que huye al detectar al player
     private float fleeTimer;
     private bool isFleeing;
-    private PFNode currentNode;
-    private List<PFNode> path;
-    private int pathIndex;
+    // PATHFINDING -----------------------
+    private List<PFNode> currentPath = new List<PFNode>();
+    private int pathIndex = 0;
+    [SerializeField] private float repathTime = 1.0f;   // cada cuanto recalcula
+    private float repathTimer = 0f;
 
     public enum EnemyType { Aggressive, Coward }
 
@@ -52,11 +54,8 @@ public class NPCTree : MonoBehaviour
     // Rigidbody
     private Rigidbody rb;
     private float startY;
-
     void Start()
     {
-        currentNode = PathFindingManager.instance.Closest(transform.position);
-        path = new List<PFNode>();
         rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ; // que no se caiga de costado
         rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -173,31 +172,14 @@ public class NPCTree : MonoBehaviour
 
     private void Patrol()
     {
-        if (waypoints == null || waypoints.Length == 0)
+        if (waypoints == null || waypoints.Length == 0 || arrive == null)
             return;
 
-        if (path == null || path.Count == 0)
-        {
-            currentNode = PathFindingManager.instance.Closest(transform.position);
-            path = PathFindingManager.instance.GetPath(currentNode);
-            pathIndex = 0;
-            return;
-        }
-
-        if (pathIndex < path.Count)
-        {
-            Vector3 targetPos = path[pathIndex].transform.position;
-            Vector3 dir = targetPos - transform.position;
-            dir.y = 0;
-            rb.MovePosition(transform.position + dir.normalized * maxSpeed * Time.deltaTime);
-
-            if (dir.magnitude < 0.3f)
-            {
-                pathIndex++;
-            }
-        }
+        Debug.Log($"{name}: Patrol (wp {currentWP})");
+        arrive.SetTarget = waypoints[currentWP].transform;
+        var steer = arrive.GetSteerDir(velocity);
+        ApplySteering(steer);
     }
-
 
     private void Idle()
     {
@@ -230,13 +212,26 @@ public class NPCTree : MonoBehaviour
 
     private void Persuit()
     {
-        Debug.Log($"{name}: Persuit");
-        if (persuit != null)
+        if (target == null) return;
+
+        // Recalcular camino cada cierto tiempo
+        repathTimer -= Time.deltaTime;
+        if (repathTimer <= 0)
         {
-            var steer = persuit.GetSteerDir(velocity);
-            ApplySteering(steer);
+            RequestPath();
+            repathTimer = repathTime;
+        }
+
+        // Seguir el camino
+        FollowPath();
+
+        // Si está en rango de ataque, atacamos
+        if (Vector3.Distance(transform.position, target.transform.position) < attackRange)
+        {
+            Attack();
         }
     }
+
     #endregion
 
     #region Helpers
@@ -295,6 +290,36 @@ public class NPCTree : MonoBehaviour
             for (int i = 0; i < waypoints.Length; i++)
                 if (waypoints[i] != null)
                     Gizmos.DrawSphere(waypoints[i].position, 0.08f);
+        }
+    }
+    private void RequestPath()
+    {
+        if (target == null) return;
+
+        currentPath = PathfindingManager.Instance.GetPath(
+            transform.position,
+            target.transform.position
+        );
+
+        pathIndex = 0;
+    }
+    private void FollowPath()
+    {
+        if (currentPath == null || currentPath.Count == 0) return;
+        if (pathIndex >= currentPath.Count) return;
+
+        PFNode node = currentPath[pathIndex];
+        Vector3 nodePos = node.transform.position;
+
+        // Usamos tu steering Arrive o Seek
+        arrive.SetTarget = node.transform;
+        var steer = arrive.GetSteerDir(velocity);
+        ApplySteering(steer);
+
+        // Si estamos cerca, pasamos al siguiente nodo
+        if (Vector3.Distance(transform.position, nodePos) < 0.5f)
+        {
+            pathIndex++;
         }
     }
 }

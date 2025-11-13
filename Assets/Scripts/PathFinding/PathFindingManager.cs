@@ -1,81 +1,111 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class PathFindingManager : MonoBehaviour
+public class PathfindingManager : MonoBehaviour
 {
-    public static PathFindingManager instance { get; private set; }
+    public static PathfindingManager Instance { get; private set; }
 
-    [Header("References")]
-    public PFGrid grid;
-    public PFNode goal;
-    public LayerMask obstacleMask;
+    [Header("Configuración")]
+    public LayerMask obstacleMask;       // Obstáculos que bloquean la vista
+    public List<PFNode> allNodes = new List<PFNode>();
 
-    void Awake() => instance = this;
+    void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
 
-    public PFNode Closest(Vector3 pos)
+        // Cargar automáticamente todos los nodos en la escena
+        allNodes.Clear();
+        allNodes.AddRange(FindObjectsOfType<PFNode>());
+    }
+
+    /// <summary>
+    /// Encuentra el nodo más cercano a una posición en el mundo
+    /// </summary>
+    public PFNode GetClosestNode(Vector3 position)
     {
         PFNode closest = null;
-        float minDistance = Mathf.Infinity;
+        float minDist = float.MaxValue;
 
-        foreach (var node in grid.Nodes)
+        foreach (var node in allNodes)
         {
             if (node.isBlocked) continue;
-            float dist = Vector3.SqrMagnitude(pos - node.transform.position);
-            if (dist < minDistance)
+            float dist = Vector3.SqrMagnitude(node.transform.position - position);
+            if (dist < minDist)
             {
-                minDistance = dist;
                 closest = node;
+                minDist = dist;
             }
         }
+
         return closest;
     }
 
-    public List<PFNode> GetPath(PFNode start)
+    /// <summary>
+    /// Calcula el camino entre dos puntos usando ThetaStar
+    /// </summary>
+    public List<PFNode> GetPath(Vector3 startPos, Vector3 goalPos)
     {
-        if (goal == null)
+        PFNode start = GetClosestNode(startPos);
+        PFNode goal = GetClosestNode(goalPos);
+
+        if (start == null || goal == null)
         {
-            Debug.LogWarning("No hay objetivo asignado para el Pathfinding.");
+            Debug.LogWarning("No se encontraron nodos cercanos al origen o destino");
             return null;
         }
 
         var path = Pathfinding.ThetaStar(
             start,
-            Objective,
+            (n) => n == goal,
             GetNeighborsInSight,
             GetDistanceCost,
             GetDistanceHeuristic,
             HasLineOfSight
         );
 
-        if (path == null) return null;
-
-        int length = path.Count;
-        for (int i = 0; i < length; i++)
-            path[i].Color = Color.Lerp(Color.cyan, Color.green, (float)i / length);
+        // Colorear el camino para debug
+        if (path != null)
+        {
+            int length = path.Count;
+            for (int i = 0; i < length; i++)
+            {
+                path[i].Color = Color.Lerp(Color.cyan, Color.green, (float)i / length);
+            }
+        }
 
         return path;
     }
 
-    private bool Objective(PFNode node) => node == goal;
+    // --- Funciones auxiliares ---
 
     private List<PFNode> GetNeighborsInSight(PFNode node)
     {
         var visible = new List<PFNode>();
-        foreach (var n in node.neighbors)
+        foreach (var neighbor in node.neighbors)
         {
-            if (!n.isBlocked && !Physics.Linecast(node.transform.position, n.transform.position, obstacleMask))
-                visible.Add(n);
+            if (neighbor == null || neighbor.isBlocked) continue;
+            if (!Physics.Linecast(node.transform.position, neighbor.transform.position, obstacleMask))
+                visible.Add(neighbor);
         }
         return visible;
     }
 
-    private float GetDistanceCost(PFNode a, PFNode b)
-        => Vector3.Distance(a.transform.position, b.transform.position);
+    private float GetDistanceCost(PFNode from, PFNode to)
+    {
+        return Vector3.Distance(from.transform.position, to.transform.position);
+    }
 
     private float GetDistanceHeuristic(PFNode node)
-        => Vector3.Distance(node.transform.position, goal.transform.position);
+    {
+        // Heurística simple: distancia hasta el destino global
+        return Vector3.Distance(node.transform.position, allNodes[allNodes.Count - 1].transform.position);
+    }
 
     private bool HasLineOfSight(PFNode a, PFNode b)
-        => !Physics.Linecast(a.transform.position, b.transform.position, obstacleMask);
+    {
+        return !Physics.Linecast(a.transform.position, b.transform.position, obstacleMask);
+    }
 }
+
 
