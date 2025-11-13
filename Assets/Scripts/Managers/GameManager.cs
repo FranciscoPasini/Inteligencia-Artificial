@@ -3,30 +3,21 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("UI Panels")]
     [SerializeField] private GameObject losePanel;
     [SerializeField] private GameObject victoryPanel;
 
-    [SerializeField] private GameObject winningBox;
+    [Header("Player Reference")]
+    [SerializeField] private GameObject player;  // referencia directa
 
     private bool panelOpened = false;
 
-    void Start()
-    {
-        // Aseguramos que el trigger de victoria tenga isTrigger = true
-        if (winningBox != null)
-        {
-            Collider col = winningBox.GetComponent<Collider>();
-            if (col != null) col.isTrigger = true;
-        }
-    }
-
     void Update()
     {
+        // Si ya abrió panel, no seguimos
         if (panelOpened) return;
 
-        // Busca si todavía existe el Player
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-
+        // Si el player fue destruido -> pierde
         if (player == null)
         {
             OpenPanel(losePanel);
@@ -34,40 +25,33 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // Dentro de GameManager (si está en el GameObject con collider trigger)
-    private void OnTriggerEnter(Collider other)
+    public void TriggerWin()
     {
         if (panelOpened) return;
-        if (other.CompareTag("Player"))
-        {
-            Win();
-        }
-    }
 
-
-    public void Win()
-    {
         OpenPanel(victoryPanel);
         panelOpened = true;
+    }
+
+    private void OpenPanel(GameObject panel)
+    {
+        Time.timeScale = 0f;
+
+        if (losePanel != null) losePanel.SetActive(false);
+        if (victoryPanel != null) victoryPanel.SetActive(false);
+
+        panel.SetActive(true);
     }
 
     public void Restart()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene("Level"); // asegúrate que "Level" exista en Build Settings
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     public void Exit()
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene("MainMenu");
-    }
-
-    public void OpenPanel(GameObject panel)
-    {
-        losePanel.SetActive(false);
-        victoryPanel.SetActive(false);
-        Time.timeScale = 0f;
-        panel.SetActive(true);
     }
 }
