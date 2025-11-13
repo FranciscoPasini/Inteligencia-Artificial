@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(ObstacleAvoidance))]
 [RequireComponent(typeof(Rigidbody))]
@@ -8,6 +9,9 @@ public class NPCTree : MonoBehaviour
     [SerializeField] float fleeDuration = 5f; // tiempo que huye al detectar al player
     private float fleeTimer;
     private bool isFleeing;
+    private PFNode currentNode;
+    private List<PFNode> path;
+    private int pathIndex;
 
     public enum EnemyType { Aggressive, Coward }
 
@@ -51,6 +55,8 @@ public class NPCTree : MonoBehaviour
 
     void Start()
     {
+        currentNode = PathFindingManager.instance.Closest(transform.position);
+        path = new List<PFNode>();
         rb = GetComponent<Rigidbody>();
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ; // que no se caiga de costado
         rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -167,14 +173,31 @@ public class NPCTree : MonoBehaviour
 
     private void Patrol()
     {
-        if (waypoints == null || waypoints.Length == 0 || arrive == null)
+        if (waypoints == null || waypoints.Length == 0)
             return;
 
-        Debug.Log($"{name}: Patrol (wp {currentWP})");
-        arrive.SetTarget = waypoints[currentWP].transform;
-        var steer = arrive.GetSteerDir(velocity);
-        ApplySteering(steer);
+        if (path == null || path.Count == 0)
+        {
+            currentNode = PathFindingManager.instance.Closest(transform.position);
+            path = PathFindingManager.instance.GetPath(currentNode);
+            pathIndex = 0;
+            return;
+        }
+
+        if (pathIndex < path.Count)
+        {
+            Vector3 targetPos = path[pathIndex].transform.position;
+            Vector3 dir = targetPos - transform.position;
+            dir.y = 0;
+            rb.MovePosition(transform.position + dir.normalized * maxSpeed * Time.deltaTime);
+
+            if (dir.magnitude < 0.3f)
+            {
+                pathIndex++;
+            }
+        }
     }
+
 
     private void Idle()
     {

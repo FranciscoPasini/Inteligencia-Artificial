@@ -7,7 +7,7 @@ public class SplashScreen : MonoBehaviour
 {
     [SerializeField] private CanvasGroup canvasGroup; 
     [SerializeField] private float fadeInDuration = 0.8f;
-    [SerializeField] private float visibleDuration = 10.0f;
+    [SerializeField] private float visibleDuration = 2.0f;
     [SerializeField] private float fadeOutDuration = 0.8f;
     [SerializeField] private string nextSceneName = "MainMenu";
     [SerializeField] private Button skipButton; 
