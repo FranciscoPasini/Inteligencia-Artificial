@@ -8,7 +8,7 @@ public class WinningBoxTrigger : MonoBehaviour
     {
         if (other.gameObject == gameManager.gameObject) return; // seguridad
 
-        if (other.gameObject == gameManager.Player)
+        //if (other.gameObject == gameManager.Player)
         {
             gameManager.TriggerWin();
         }
