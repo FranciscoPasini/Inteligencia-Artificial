@@ -605,6 +605,7 @@ GameObject:
   - component: {fileID: 186294844}
   - component: {fileID: 186294843}
   - component: {fileID: 186294847}
+  - component: {fileID: 186294848}
   m_Layer: 0
   m_Name: Capsule (3)
   m_TagString: Untagged
@@ -729,9 +730,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &186294848
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 186294841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &188153680
@@ -1123,6 +1142,7 @@ GameObject:
   - component: {fileID: 298673416}
   - component: {fileID: 298673415}
   - component: {fileID: 298673419}
+  - component: {fileID: 298673420}
   m_Layer: 0
   m_Name: Capsule (1)
   m_TagString: Untagged
@@ -1247,9 +1267,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &298673420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 298673413}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &442762047
@@ -1266,6 +1304,7 @@ GameObject:
   - component: {fileID: 442762051}
   - component: {fileID: 442762050}
   - component: {fileID: 442762054}
+  - component: {fileID: 442762055}
   m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
@@ -1390,9 +1429,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &442762055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 442762047}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &461093105
@@ -1857,6 +1914,7 @@ GameObject:
   - component: {fileID: 752152264}
   - component: {fileID: 752152263}
   - component: {fileID: 752152267}
+  - component: {fileID: 752152268}
   m_Layer: 0
   m_Name: Capsule (4)
   m_TagString: Untagged
@@ -1981,9 +2039,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &752152268
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 752152261}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &791227561
@@ -2174,7 +2250,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4666761590145058558, guid: 72281f231195cc64599beaeafa2f6ce3, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -25.6
+      value: -34.42
       objectReference: {fileID: 0}
     - target: {fileID: 4666761590145058558, guid: 72281f231195cc64599beaeafa2f6ce3, type: 3}
       propertyPath: m_LocalRotation.w
@@ -2511,6 +2587,7 @@ GameObject:
   - component: {fileID: 1005475226}
   - component: {fileID: 1005475225}
   - component: {fileID: 1005475229}
+  - component: {fileID: 1005475230}
   m_Layer: 0
   m_Name: Capsule (2)
   m_TagString: Untagged
@@ -2635,9 +2712,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &1005475230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1005475223}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &1018585898
@@ -3052,6 +3147,7 @@ GameObject:
   - component: {fileID: 1472181972}
   - component: {fileID: 1472181971}
   - component: {fileID: 1472181975}
+  - component: {fileID: 1472181976}
   m_Layer: 0
   m_Name: Capsule (5)
   m_TagString: Untagged
@@ -3176,9 +3272,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b2be8d06f6f1a64c8c9f686e0c25342, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  predictionRange: 0
-  radius: 0
+  predictionRange: 0.2
+  radius: 0.5
   obstacleMask:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!114 &1472181976
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1472181969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ade7d34ef238103499094a162be2e6d1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _target: {fileID: 79188195}
+  _angle: 100
+  _distance: 3
+  _obstacleMask:
     serializedVersion: 2
     m_Bits: 8
 --- !u!1 &1561080471
