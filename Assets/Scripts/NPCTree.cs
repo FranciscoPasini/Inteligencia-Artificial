@@ -44,7 +44,7 @@ public class NPCTree : MonoBehaviour
     private Evade evade;
     public Arrive arrive;
 
-    // obstacle avoidance (de tu amigo)
+    // obstacle avoidance
     private ObstacleAvoidance obstacleAvoidance;
 
     // FSM y estados
@@ -53,7 +53,7 @@ public class NPCTree : MonoBehaviour
     public NPCPatrolState PatrolState { get; private set; }
     public NPCAttackState AttackState { get; private set; }
 
-    // Pathfinding internals (del código de tu amigo)
+    // Pathfinding internals
     private List<PFNode> currentPath = new List<PFNode>();
     private int pathIndex = 0;
     private float repathTimer = 0f;
@@ -207,7 +207,7 @@ public class NPCTree : MonoBehaviour
             transform.forward = Vector3.Slerp(transform.forward, final.normalized, 10f * Time.deltaTime);
     }
 
-    // ----------------------- PATHFINDING (de tu amigo) -----------------------
+    // ----------------------- PATHFINDING -----------------------
     public void RequestPath(Vector3 goalPosition)
     {
         if (PathfindingManager.Instance == null) return;
