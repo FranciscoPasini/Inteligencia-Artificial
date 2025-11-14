@@ -10,6 +10,12 @@ public class MainMenuManager : MonoBehaviour
 
     public void ExitButton()
     {
-        Application.Quit();
+        Debug.Log("Exit! (quit request)");
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+    Application.Quit();
+#endif
     }
 }

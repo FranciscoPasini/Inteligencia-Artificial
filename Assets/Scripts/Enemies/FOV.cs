@@ -1,7 +1,4 @@
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using UnityEngine.Video;
-using static UnityEngine.UI.Image;
 
 public class FOV : MonoBehaviour
 {
