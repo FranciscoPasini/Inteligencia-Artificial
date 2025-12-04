@@ -14,6 +14,24 @@ public class NPCIdleState : IState
     {
         timer = 0f;
         Debug.Log($"{npc.name}: Enter Idle");
+
+        // --- ROULETTE WHEEL PARA DEFINIR DURACIÓN DEL IDLE ---
+        float[] weights = { 0.5f, 0.5f };
+
+        int option = RouletteWheel.Select(weights);
+
+        switch (option)
+        {
+            case 0:
+                npc.CurrentIdleDuration = npc.idleDuration;        // idle normal
+                break;
+
+            case 1:
+                npc.CurrentIdleDuration = npc.idleDuration * 2.5f; // idle medio (ej: 5s si idle=2)
+                break;
+        }
+
+        Debug.Log($"{npc.name} IdleDuration set to {npc.CurrentIdleDuration}");
     }
 
     public void Execute()
@@ -27,7 +45,7 @@ public class NPCIdleState : IState
             return;
         }
 
-        if (timer >= npc.idleDuration)
+        if (timer >= npc.CurrentIdleDuration)
         {
             npc.ChangeState(npc.PatrolState);
             return;
@@ -36,6 +54,5 @@ public class NPCIdleState : IState
 
     public void Exit()
     {
-        // reset timer handled on Enter next time
     }
 }

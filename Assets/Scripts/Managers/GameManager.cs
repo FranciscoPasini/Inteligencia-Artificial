@@ -5,42 +5,66 @@ public class GameManager : MonoBehaviour
 {
     [Header("UI Panels")]
     [SerializeField] private GameObject losePanel;
-    [SerializeField] private GameObject victoryPanel;
 
-    [Header("Player Reference")]
-    [SerializeField] private GameObject player;  // referencia directa
+    [Header("Player")]
+    [SerializeField] private GameObject player;
 
-    private bool panelOpened = false;
+    [Header("Victory Block")]
+    [SerializeField] private GameObject victoryBlock;  // El cuadrado que aparece al ganar
+
+    private bool triggeredLose = false;
+    private bool victoryActivated = false;
+
+    private int totalNPCs;
+
+    void Start()
+    {
+        // Contar NPCs iniciales por tag
+        totalNPCs = GameObject.FindGameObjectsWithTag("NPC").Length;
+
+        if (victoryBlock != null)
+            victoryBlock.SetActive(false); // Ocultarlo al inicio
+    }
 
     void Update()
     {
-        // Si ya abrió panel, no seguimos
-        if (panelOpened) return;
+        if (triggeredLose) return;
 
-        // Si el player fue destruido -> pierde
+        // Si el player muere  Lose
         if (player == null)
         {
-            OpenPanel(losePanel);
-            panelOpened = true;
+            triggeredLose = true;
+            OpenLosePanel();
+            return;
+        }
+
+        // Verificar NPCs restantes
+        int npcsLeft = GameObject.FindGameObjectsWithTag("NPC").Length;
+
+        // Si no queda ninguno activar bloque de victoria
+        if (!victoryActivated && npcsLeft == 0 && totalNPCs > 0)
+        {
+            ActivateVictoryBlock();
         }
     }
 
-    public void TriggerWin()
+    private void ActivateVictoryBlock()
     {
-        if (panelOpened) return;
+        victoryActivated = true;
 
-        OpenPanel(victoryPanel);
-        panelOpened = true;
+        if (victoryBlock != null)
+        {
+            victoryBlock.SetActive(true);
+            Debug.Log("? Victory block activado");
+        }
     }
 
-    private void OpenPanel(GameObject panel)
+    private void OpenLosePanel()
     {
         Time.timeScale = 0f;
 
-        if (losePanel != null) losePanel.SetActive(false);
-        if (victoryPanel != null) victoryPanel.SetActive(false);
-
-        panel.SetActive(true);
+        if (losePanel != null)
+            losePanel.SetActive(true);
     }
 
     public void Restart()

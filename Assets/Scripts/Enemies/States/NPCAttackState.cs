@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class NPCAttackState : IState
@@ -14,73 +13,63 @@ public class NPCAttackState : IState
 
     private void BuildTree()
     {
-        // ActionNodes apuntando a los métodos del NPC
-        ActionNode die = new ActionNode(npc.Die);
+        // Acciones puras
         ActionNode flee = new ActionNode(StartFleeAction);
         ActionNode pursuit = new ActionNode(StartPursuitAction);
-        ActionNode attack = new ActionNode(npc.Attack);
 
-        // Si está en rango de ataque -> Attack, sino Pursuit
+        // Ataque con posibilidad de pánico
+        ActionNode attack = new ActionNode(AttackWithPanicChance);
+
+        //  DECISIONES 
+
+        // 1. ¿Está en rango de ataque?
         QuestionNode inAttackRange = new QuestionNode(() =>
-            npc.target != null && Vector3.Distance(npc.transform.position, npc.target.transform.position) < npc.attackRange,
+            npc.target != null &&
+            Vector3.Distance(npc.transform.position, npc.target.transform.position) < npc.attackRange,
             attack, pursuit);
 
-        // Si baja vida -> Flee, sino evaluar inAttackRange
-        QuestionNode lowHealth = new QuestionNode(() =>
-            npc.IsLowHealth(),
+        // 2. ¿Es cobarde? Siempre huye
+        QuestionNode isCoward = new QuestionNode(() =>
+            npc.enemyType == NPCTree.EnemyType.Coward,
             flee, inAttackRange);
 
-        // Si es cobarde -> huye directo, sino baja vida/inAttackRange
-        QuestionNode behaviorType = new QuestionNode(() =>
-            npc.enemyType == NPCTree.EnemyType.Coward,
-            flee, lowHealth);
-
-        // Si está muerto -> Die, sino behaviorType
-        QuestionNode isAlive = new QuestionNode(() =>
-            npc.health <= 0,
-            die, behaviorType
-        );
-
-        rootNode = isAlive;
+        // ÚNICA raíz
+        rootNode = isCoward;
     }
 
     public void Enter()
     {
         Debug.Log($"{npc.name}: Enter Attack");
-        // reseteamos búsqueda por si venimos de búsqueda
         npc.isSearching = false;
     }
 
     public void Execute()
     {
-        // Si ve al player ? persuit normal
+        // jugador a la vista  árbol
         if (npc.IsPlayerInSight())
         {
             npc.lastSeenPosition = npc.target.transform.position;
-            rootNode.Execute();  // árbol normal
+            rootNode.Execute();
             return;
         }
 
-        // Si NO lo ve ? iniciar búsqueda de nodos
+        // jugador NO visible  búsqueda multinodo
         if (!npc.isSearching)
-        {
             npc.StartNodeSearch();
-        }
 
         int searchState = npc.UpdateNodeSearch();
 
         if (searchState == 1)
         {
-            // volvió a verlo
+            // Volvió a verlo  árbol lo maneja
             return;
         }
         else if (searchState == 0)
         {
-            // terminó de revisar nodos: volver a patrullar
+            // No lo encontró en el tiempo  patrulla
             npc.ChangeState(npc.PatrolState);
             return;
         }
-
     }
 
     public void Exit()
@@ -88,26 +77,42 @@ public class NPCAttackState : IState
         Debug.Log($"{npc.name}: Exit Attack");
     }
 
-    // Helpers que envuelven las acciones para adaptar a ActionNode
+
+    // ===================
+    // ACTION WRAPPERS
+    // ===================
+
+    private void AttackWithPanicChance()
+    {
+        // Solo agresivos tienen chance de entrar en pánico
+        if (npc.enemyType == NPCTree.EnemyType.Aggressive)
+        {
+            // 50% atacar / 50% huir
+            float[] weights = { 0.5f, 0.5f };
+            int result = RouletteWheel.Select(weights);
+
+            if (result == 1)
+            {
+                Debug.Log($"{npc.name}: Entra en pánico y huye!");
+                StartFleeAction();
+                return;
+            }
+        }
+
+        npc.Attack(); // ataque normal
+    }
+
     private void StartFleeAction()
     {
-        // Cuando el árbol decide huir, empezamos la acción de huida normal (evade)
-        npc.isSearching = false; // cancelar búsqueda si la hubiese
-        // Flee se ejecutará en próximos frames mientras el estado sea Attack y el árbol siga retornando flee
+        npc.isSearching = false;
         npc.Flee();
     }
 
     private void StartPursuitAction()
     {
-        // Si está en rango de visión usamos persuit directo (steering)
         if (npc.IsPlayerInSight())
-        {
             npc.Persuit();
-        }
         else
-        {
-            // Si no lo ve, usamos persuit con pathfinding (search behavior)
             npc.PersuitWithPathfinding();
-        }
     }
 }

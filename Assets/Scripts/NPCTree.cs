@@ -7,11 +7,6 @@ public class NPCTree : MonoBehaviour
 {
     public enum EnemyType { Aggressive, Coward }
 
-    [Header("Stats")]
-    public int health = 100;
-    public int maxHealth = 100;
-    [Range(0, 100)] public int lowHealthThreshold = 30;
-
     [Header("References")]
     public FOV fieldOfView;
     public GameObject target;
@@ -47,7 +42,7 @@ public class NPCTree : MonoBehaviour
     private float inspectTimer = 0f;
     private bool inspectingNode = false;
 
-
+    [HideInInspector] public float CurrentIdleDuration = 3f; // Timer de Idle
     // steering / movement state
     [HideInInspector] public int currentWP = 0;
     [HideInInspector] public Vector3 velocity;
@@ -428,10 +423,5 @@ public class NPCTree : MonoBehaviour
     public bool IsPlayerInSight()
     {
         return fieldOfView != null && fieldOfView.CheckDetection();
-    }
-
-    public bool IsLowHealth()
-    {
-        return health < maxHealth * lowHealthThreshold / 100f;
     }
 }

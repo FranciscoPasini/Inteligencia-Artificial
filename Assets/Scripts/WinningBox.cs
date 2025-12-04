@@ -2,15 +2,19 @@ using UnityEngine;
 
 public class WinningBoxTrigger : MonoBehaviour
 {
-    public GameManager gameManager;
+    [SerializeField] private GameObject victoryPanel;
+
+    private bool used = false;
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject == gameManager.gameObject) return; // seguridad
+        if (used) return;
 
-        //if (other.gameObject == gameManager.Player)
+        if (other.CompareTag("Player"))
         {
-            gameManager.TriggerWin();
+            used = true;
+            Time.timeScale = 0f;
+            victoryPanel.SetActive(true);
         }
     }
 }
