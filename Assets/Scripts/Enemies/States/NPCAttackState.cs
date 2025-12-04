@@ -53,40 +53,34 @@ public class NPCAttackState : IState
 
     public void Execute()
     {
-        if (npc.target == null)
-        {
-            npc.ChangeState(npc.PatrolState);
-            return;
-        }
-
-        // Si ve al jugador: ejecutar árbol normal
+        // Si ve al player ? persuit normal
         if (npc.IsPlayerInSight())
         {
-            // Actualizar last seen
             npc.lastSeenPosition = npc.target.transform.position;
-            rootNode.Execute();
+            rootNode.Execute();  // árbol normal
             return;
         }
 
-        // Si no lo ve: iniciar búsqueda con pathfinding por searchDuration
+        // Si NO lo ve ? iniciar búsqueda de nodos
         if (!npc.isSearching)
         {
-            npc.StartSearch(npc.lastSeenPosition, npc.searchDuration);
+            npc.StartNodeSearch();
         }
 
-        int searchState = npc.UpdateSearch(); // -1 buscando, 0 expiró, 1 encontró
+        int searchState = npc.UpdateNodeSearch();
+
         if (searchState == 1)
         {
-            // lo encontró, volvemos a ejecutar árbol normalmente en el próximo frame
+            // volvió a verlo
             return;
         }
         else if (searchState == 0)
         {
-            // expiró la búsqueda
+            // terminó de revisar nodos: volver a patrullar
             npc.ChangeState(npc.PatrolState);
             return;
         }
-        // si -1 => sigue buscando (UpdateSearch ya movió al NPC por los nodos)
+
     }
 
     public void Exit()

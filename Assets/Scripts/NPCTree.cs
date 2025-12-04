@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
@@ -30,6 +30,17 @@ public class NPCTree : MonoBehaviour
     [Header("Pathfinding (search)")]
     [SerializeField] private float repathTime = 1.0f;   // cada cuanto recalcula ruta
     [SerializeField] public float searchDuration = 10f; // tiempo que busca al perder vision
+
+    [Header("Search Nodes")]
+    public float nodeInspectTime = 3f;             // tiempo que revisa un nodo
+    public float neighborInspectTime = 1.5f;       // tiempo en nodos vecinos
+    public int maxNeighborChecks = 3;              // cantidad mÃ¡xima de vecinos a revisar
+
+    private PFNode currentSearchNode;
+    private Queue<PFNode> neighborQueue = new Queue<PFNode>();
+    private float inspectTimer = 0f;
+    private bool inspectingNode = false;
+
 
     // steering / movement state
     [HideInInspector] public int currentWP = 0;
@@ -65,6 +76,109 @@ public class NPCTree : MonoBehaviour
 
     // utilities
     private float idleTimer = 0f;
+
+    public void StartNodeSearch()
+    {
+        isSearching = true;
+
+        currentSearchNode = PathfindingManager.Instance.GetClosestNode(lastSeenPosition);
+
+        // si no hay nodo â†’ abortar bÃºsqueda
+        if (currentSearchNode == null)
+        {
+            isSearching = false;
+            return;
+        }
+
+        neighborQueue.Clear();
+
+        // cargar vecinos seguros
+        foreach (var n in currentSearchNode.neighbors)
+            if (n != null)
+                neighborQueue.Enqueue(n);
+
+        inspectTimer = nodeInspectTime;
+        inspectingNode = true;
+
+        // intentar path
+        bool ok = RequestPath(currentSearchNode.transform.position);
+
+        // si el path falla â†’ terminar bÃºsqueda
+        if (!ok)
+        {
+            isSearching = false;
+        }
+    }
+
+
+
+    public int UpdateNodeSearch()
+    {
+        if (!isSearching) return -1;
+
+        if (IsPlayerInSight())
+        {
+            isSearching = false;
+            return 1;
+        }
+
+        // Si no tengo path â†’ termina la bÃºsqueda sin crashear
+        if (currentPath == null || currentPath.Count == 0)
+        {
+            isSearching = false;
+            return 0;
+        }
+
+        // Mientras tenga nodos del camino â†’ seguir
+        if (pathIndex < currentPath.Count)
+        {
+            FollowPath();
+            return -1;
+        }
+
+        // ------------- LLEGAMOS AL NODO -------------
+
+        // REVISIÃ“N DEL NODO
+        if (inspectingNode)
+        {
+            inspectTimer -= Time.deltaTime;
+            if (inspectTimer <= 0f)
+                inspectingNode = false;
+
+            return -1;
+        }
+
+        // PASAR A VECINOS
+        if (neighborQueue.Count > 0)
+        {
+            PFNode nextNode = neighborQueue.Dequeue();
+
+            // defensa null
+            if (nextNode == null)
+                return -1;
+
+            currentSearchNode = nextNode;
+
+            inspectTimer = neighborInspectTime;
+            inspectingNode = true;
+
+            bool ok = RequestPath(nextNode.transform.position);
+
+            if (!ok)
+            {
+                // si no puedo llegar al vecino, sigo con el siguiente
+                return -1;
+            }
+
+            return -1;
+        }
+
+        // FIN DE LA BÃšSQUEDA
+        isSearching = false;
+        return 0;
+    }
+
+
 
     void Start()
     {
@@ -117,11 +231,11 @@ public class NPCTree : MonoBehaviour
         var steer = arrive.GetSteerDir(velocity);
         ApplySteering(steer);
 
-        // si llegó al waypoint, lo maneja el PatrolState (ruleta)
+        // si llegÃ³ al waypoint, lo maneja el PatrolState (ruleta)
         if (Vector3.Distance(transform.position, waypoints[currentWP].position) < 0.5f)
         {
-            // avanzar indice para próximo objetivo (si PatrolState decide seguir)
-            // El PatrolState actualizará currentWP cuando corresponda.
+            // avanzar indice para prÃ³ximo objetivo (si PatrolState decide seguir)
+            // El PatrolState actualizarÃ¡ currentWP cuando corresponda.
         }
     }
 
@@ -133,7 +247,7 @@ public class NPCTree : MonoBehaviour
 
     public void Persuit()
     {
-        // Versión simple (steering directo, usado cuando ve al jugador)
+        // VersiÃ³n simple (steering directo, usado cuando ve al jugador)
         if (persuit == null || target == null) return;
         velocity = persuit.GetSteerDir(velocity);
         ApplySteering(velocity);
@@ -144,16 +258,16 @@ public class NPCTree : MonoBehaviour
         // llamado cuando queremos usar pathfinding para buscar/perseguir
         if (target == null) return;
 
-        // si todavía ve al jugador: sigue con persuit normal (más reactivo)
+        // si todavÃ­a ve al jugador: sigue con persuit normal (mÃ¡s reactivo)
         if (IsPlayerInSight())
         {
             Persuit();
-            // actualizar última posición vista
+            // actualizar Ãºltima posiciÃ³n vista
             lastSeenPosition = target.transform.position;
             return;
         }
 
-        // si perdió la visión: iniciar o continuar búsqueda
+        // si perdiÃ³ la visiÃ³n: iniciar o continuar bÃºsqueda
         if (!isSearching)
             StartSearch(lastSeenPosition, searchDuration);
 
@@ -208,14 +322,25 @@ public class NPCTree : MonoBehaviour
     }
 
     // ----------------------- PATHFINDING -----------------------
-    public void RequestPath(Vector3 goalPosition)
+    public bool RequestPath(Vector3 goalPosition)
     {
-        if (PathfindingManager.Instance == null) return;
+        if (PathfindingManager.Instance == null)
+            return false;
 
         currentPath = PathfindingManager.Instance.GetPath(transform.position, goalPosition);
+
+        if (currentPath == null || currentPath.Count == 0)
+        {
+            currentPath = null;
+            return false;
+        }
+
         pathIndex = 0;
         repathTimer = repathTime;
+        return true;
     }
+
+
 
     private void FollowPath()
     {
@@ -255,15 +380,15 @@ public class NPCTree : MonoBehaviour
     /// <summary>
     /// Llamar cada frame mientras isSearching == true.
     /// Retorna:
-    /// -1 = aún buscando (no encontró, no expiró)
-    ///  0 = expiró (falló)
-    ///  1 = encontró (volvió a ver al player)
+    /// -1 = aÃºn buscando (no encontrÃ³, no expirÃ³)
+    ///  0 = expirÃ³ (fallÃ³)
+    ///  1 = encontrÃ³ (volviÃ³ a ver al player)
     /// </summary>
     public int UpdateSearch()
     {
         if (!isSearching) return -1;
 
-        // si volvió a ver al jugador
+        // si volviÃ³ a ver al jugador
         if (IsPlayerInSight())
         {
             isSearching = false;
@@ -285,7 +410,7 @@ public class NPCTree : MonoBehaviour
         if (searchTimer <= 0f)
         {
             isSearching = false;
-            return 0; // expiró
+            return 0; // expirÃ³
         }
 
         return -1; // sigue buscando
