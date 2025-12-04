@@ -35,6 +35,12 @@ public class NPCTree : MonoBehaviour
     public float nodeInspectTime = 3f;             // tiempo que revisa un nodo
     public float neighborInspectTime = 1.5f;       // tiempo en nodos vecinos
     public int maxNeighborChecks = 3;              // cantidad máxima de vecinos a revisar
+                                                   // --- MULTI NODE SEARCH ---
+    [Header("Multi-node Search")]
+    public int nodesToCheck = 3; // cuantos nodos revisar en cadena
+
+    private Queue<PFNode> bfsNodes = new Queue<PFNode>();
+    private PFNode currentNodeGoal;
 
     private PFNode currentSearchNode;
     private Queue<PFNode> neighborQueue = new Queue<PFNode>();
@@ -81,33 +87,61 @@ public class NPCTree : MonoBehaviour
     {
         isSearching = true;
 
-        currentSearchNode = PathfindingManager.Instance.GetClosestNode(lastSeenPosition);
+        // 1. tomar nodo más cercano a la última posición vista
+        PFNode startNode = PathfindingManager.Instance.GetClosestNode(lastSeenPosition);
 
-        // si no hay nodo → abortar búsqueda
-        if (currentSearchNode == null)
+        if (startNode == null)
         {
             isSearching = false;
             return;
         }
 
-        neighborQueue.Clear();
+        // 2. BFS limitada para obtener nodos vecinos encadenados
+        List<PFNode> chain = SmallBFS(startNode, nodesToCheck);
 
-        // cargar vecinos seguros
-        foreach (var n in currentSearchNode.neighbors)
-            if (n != null)
-                neighborQueue.Enqueue(n);
+        bfsNodes.Clear();
+        foreach (var n in chain)
+            bfsNodes.Enqueue(n);
 
-        inspectTimer = nodeInspectTime;
-        inspectingNode = true;
-
-        // intentar path
-        bool ok = RequestPath(currentSearchNode.transform.position);
-
-        // si el path falla → terminar búsqueda
-        if (!ok)
+        // 3. tomar primer nodo
+        if (bfsNodes.Count > 0)
+            currentNodeGoal = bfsNodes.Dequeue();
+        else
         {
             isSearching = false;
+            return;
         }
+
+        // 4. pedir path al primer nodo
+        RequestPath(currentNodeGoal.transform.position);
+    }
+
+    private List<PFNode> SmallBFS(PFNode start, int limit)
+    {
+        List<PFNode> result = new List<PFNode>();
+        Queue<PFNode> q = new Queue<PFNode>();
+        HashSet<PFNode> visited = new HashSet<PFNode>();
+
+        q.Enqueue(start);
+        visited.Add(start);
+
+        while (q.Count > 0 && result.Count < limit)
+        {
+            PFNode cur = q.Dequeue();
+            result.Add(cur);
+
+            foreach (var nb in cur.neighbors)
+            {
+                if (nb == null) continue;
+                if (visited.Contains(nb)) continue;
+
+                // check walls? NO. BFS ignora paredes porque ya tenés pathfinding.
+                visited.Add(nb);
+                q.Enqueue(nb);
+            }
+        }
+
+        return result;
     }
 
 
@@ -116,67 +150,41 @@ public class NPCTree : MonoBehaviour
     {
         if (!isSearching) return -1;
 
+        // si volvió a ver al jugador → éxito
         if (IsPlayerInSight())
         {
             isSearching = false;
             return 1;
         }
 
-        // Si no tengo path → termina la búsqueda sin crashear
+        // si no hay path, terminar búsqueda
         if (currentPath == null || currentPath.Count == 0)
         {
             isSearching = false;
             return 0;
         }
 
-        // Mientras tenga nodos del camino → seguir
+        // si seguimos en camino hacia el nodo objetivo
         if (pathIndex < currentPath.Count)
         {
             FollowPath();
             return -1;
         }
 
-        // ------------- LLEGAMOS AL NODO -------------
-
-        // REVISIÓN DEL NODO
-        if (inspectingNode)
+        // ------------ LLEGÓ AL NODO ------------
+        // si hay más nodos en la BFS
+        if (bfsNodes.Count > 0)
         {
-            inspectTimer -= Time.deltaTime;
-            if (inspectTimer <= 0f)
-                inspectingNode = false;
-
+            currentNodeGoal = bfsNodes.Dequeue();
+            RequestPath(currentNodeGoal.transform.position);
             return -1;
         }
 
-        // PASAR A VECINOS
-        if (neighborQueue.Count > 0)
-        {
-            PFNode nextNode = neighborQueue.Dequeue();
-
-            // defensa null
-            if (nextNode == null)
-                return -1;
-
-            currentSearchNode = nextNode;
-
-            inspectTimer = neighborInspectTime;
-            inspectingNode = true;
-
-            bool ok = RequestPath(nextNode.transform.position);
-
-            if (!ok)
-            {
-                // si no puedo llegar al vecino, sigo con el siguiente
-                return -1;
-            }
-
-            return -1;
-        }
-
-        // FIN DE LA BÚSQUEDA
+        // ------------ TERMINÓ LA BÚSQUEDA ------------
         isSearching = false;
         return 0;
     }
+
 
 
 

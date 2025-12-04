@@ -4484,7 +4484,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -4552,7 +4552,7 @@ Transform:
   m_GameObject: {fileID: 449345719}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 23.93912, y: 1, z: 32.586357}
+  m_LocalPosition: {x: 35.01, y: 1, z: 32.586357}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6996,7 +6996,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -7064,7 +7064,7 @@ Transform:
   m_GameObject: {fileID: 720371392}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 21.38912, y: 1, z: 25.35896}
+  m_LocalPosition: {x: 21.38912, y: 1, z: 19.35}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13588,6 +13588,7 @@ MonoBehaviour:
   nodeInspectTime: 3
   neighborInspectTime: 1.5
   maxNeighborChecks: 3
+  nodesToCheck: 3
   currentWP: 0
   velocity: {x: 0, y: 0, z: 0}
   isSearching: 0
@@ -18086,6 +18087,7 @@ MonoBehaviour:
   nodeInspectTime: 3
   neighborInspectTime: 1.5
   maxNeighborChecks: 3
+  nodesToCheck: 3
   currentWP: 0
   velocity: {x: 0, y: 0, z: 0}
   isSearching: 0
@@ -23746,7 +23748,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -23761,7 +23763,7 @@ Transform:
   m_GameObject: {fileID: 9211780370563172988}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 18.676996, y: 1, z: 32.586357}
+  m_LocalPosition: {x: 10.02, y: 1, z: 43.24}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
